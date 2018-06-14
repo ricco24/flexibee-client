@@ -1,0 +1,19 @@
+{
+    "name": "kelemen/flexibee-client",
+    "description": "Client for communication with FlexiBee",
+    "license": "MIT",
+    "keywords": ["flexibee", "client"],
+    "authors": [
+        {
+            "name": "Samuel Kelemen",
+            "email": "kelemen.samuel@gmail.com"
+        }
+    ],
+    "require": {
+        "php": ">= 5.6",
+        "guzzle/guzzle": "^3.9"
+    },
+    "autoload": {
+        "classmap": ["src/"]
+    }
+}
