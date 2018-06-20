@@ -1,28 +1,39 @@
 <?php
 
-namespace FlexibeeClient\Registry;
+namespace FlexibeeClient;
 
+use FlexibeeClient\Result\Factory\IResultFactory;
+use FlexibeeClient\Result\Result;
 use GuzzleHttp\Client;
 use GuzzleHttp\Psr7\Request;
 
 class Registry
 {
+    /** @var string */
     private $type;
 
+    /** @var string */
     private $host;
 
+    /** @var string */
     private $company;
 
+    /** @var string */
     private $username;
 
+    /** @var string */
     private $password;
 
+    /** @var Client */
     private $client;
 
+    /** @var string */
     private $outputFormat = 'json';
 
+    /** @var string */
     private $filter;
 
+    /** @var array */
     private $parameters = [];
 
     const TYPE_ADDRESS = 'adresar';
@@ -36,13 +47,14 @@ class Registry
      * @param $username
      * @param $password
      */
-    public function __construct($type, $host, $company, $username, $password)
+    public function __construct($type, $host, $company, $username, $password, IResultFactory $resultFactory)
     {
         $this->type = $type;
         $this->host = $host;
         $this->company = $company;
         $this->username = $username;
         $this->password = $password;
+        $this->resultFactory = $resultFactory;
     }
 
     /**
@@ -356,21 +368,34 @@ class Registry
         return $this->setParameter('skupina-stitku', $labelGroups);
     }
 
+    /**
+     * @param string $outputFormat
+     * @return Registry
+     */
     public function setOutputFormat($outputFormat)
     {
         $this->outputFormat = $outputFormat;
         return $this;
     }
 
+    /**
+     * @param string $filter
+     * @return Registry
+     */
     public function setFilter($filter)
     {
         $this->filter = $filter;
         return $this;
     }
 
+    /**
+     * Create endpoint
+     * @param array $data
+     * @return Result
+     */
     public function callCreate(array $data)
     {
-        $url = $this->getBaseUrl() . '.' . $this->outputFormat;
+        $url = $this->getBaseUrl() . '.' . $this->outputFormat . $this->getAppendUrl();
 
         $request = new Request('PUT', $url);
         $response = $this->getClient()->send($request, array_merge($this->getBaseRequestOptions(), ['json' => [
@@ -379,19 +404,18 @@ class Registry
             ]
         ]]));
 
-        if ($response->getStatusCode() !== 200) {
-            // @TODO: spracovanie chýb
-//            return null;
-        }
-
-        $data = json_decode($response->getBody(), true);
-        return $data;
+        return $this->resultFactory->createResult($this->outputFormat, $response->getStatusCode(), (string) $response->getBody());
     }
 
+    /**
+     * Update endpoint
+     * @param int $id
+     * @param array $data
+     * @return Result
+     */
     public function callUpdate($id, array $data)
     {
-        $url = $this->getBaseUrl() . '/' . $id . '.' . $this->outputFormat;
-
+        $url = $this->getBaseUrl() . '/' . $id . '.' . $this->outputFormat . $this->getAppendUrl();
         $request = new Request('PUT', $url);
         $response = $this->getClient()->send($request, array_merge($this->getBaseRequestOptions(), ['json' => [
             'flexibee' => [
@@ -399,129 +423,112 @@ class Registry
             ]
         ]]));
 
-        if ($response->getStatusCode() !== 200) {
-            // @TODO: spracovanie chýb
-//            return null;
-        }
-
-        $data = json_decode($response->getBody(), true);
-        return $data;
+        return $this->resultFactory->createResult($this->outputFormat, $response->getStatusCode(), (string) $response->getBody());
     }
 
+    /**
+     * Detail endpoint
+     * @param int $id
+     * @return Result
+     */
     public function callDetail($id)
     {
         $url = $this->getBaseUrl() . '/' . $id . '.' . $this->outputFormat . $this->getAppendUrl();
-
         $request = new Request('GET', $url);
         $response = $this->getClient()->send($request, $this->getBaseRequestOptions());
-
-        if ($response->getStatusCode() !== 200) {
-            // @TODO: spracovanie chýb
-            return null;
-        }
-
-        $data = json_decode($response->getBody(), true);
-        return $data;
+        return $this->resultFactory->createResult($this->outputFormat, $response->getStatusCode(), (string) $response->getBody());
     }
 
+    /**
+     * Relations endpoint
+     * @param null|int $id
+     * @param null|string $type
+     * @return Result
+     */
     public function callRelations($id = null, $type = null)
     {
         if ($id && $type) {
-            $url = $this->getBaseUrl() . '/' . $id . '/' . $type . '.' . $this->outputFormat;
+            $url = $this->getBaseUrl() . '/' . $id . '/' . $type . '.' . $this->outputFormat . $this->getAppendUrl();
         } else {
-            $url = $this->getBaseUrl() . '/relations.' . $this->outputFormat;
+            $url = $this->getBaseUrl() . '/relations.' . $this->outputFormat . $this->getAppendUrl();
         }
 
         $request = new Request('GET', $url);
         $response = $this->getClient()->send($request, $this->getBaseRequestOptions());
-
-        if ($response->getStatusCode() !== 200) {
-            // @TODO: spracovanie chýb
-            return null;
-        }
-
-        $data = json_decode($response->getBody(), true);
-        return $data;
+        return $this->resultFactory->createResult($this->outputFormat, $response->getStatusCode(), (string) $response->getBody());
     }
 
+    /**
+     * Reports endpoint
+     * @return Result
+     */
     public function callReports()
     {
-        $url = $this->getBaseUrl() . '/reports.' . $this->outputFormat;
-
+        $url = $this->getBaseUrl() . '/reports.' . $this->outputFormat . $this->getAppendUrl();
         $request = new Request('GET', $url);
         $response = $this->getClient()->send($request, $this->getBaseRequestOptions());
-
-        if ($response->getStatusCode() !== 200) {
-            // @TODO: spracovanie chýb
-            return null;
-        }
-
-        $data = json_decode($response->getBody(), true);
-        return $data;
+        return $this->resultFactory->createResult($this->outputFormat, $response->getStatusCode(), (string) $response->getBody());
     }
 
+    /**
+     * Registry properties endpoint
+     * @return Result
+     */
     public function callProperties()
     {
-        $url = $this->getBaseUrl() . '/properties.' . $this->outputFormat;
-
+        $url = $this->getBaseUrl() . '/properties.' . $this->outputFormat . $this->getAppendUrl();
         $request = new Request('GET', $url);
         $response = $this->getClient()->send($request, $this->getBaseRequestOptions());
-
-        if ($response->getStatusCode() !== 200) {
-            // @TODO: spracovanie chýb
-            return null;
-        }
-
-        $data = json_decode($response->getBody(), true);
-        return $data;
+        return $this->resultFactory->createResult($this->outputFormat, $response->getStatusCode(), (string) $response->getBody());
     }
 
+    /**
+     * Listing endpoint
+     * @return Result
+     */
     public function callList()
     {
         $url = $this->getBaseUrl();
         if ($this->filter) {
             $url .= '/(' . $this->filter . ')';
         }
-        $url .= '.' . $this->outputFormat;
+        $url .= '.' . $this->outputFormat . $this->getAppendUrl();
 
         $request = new Request('GET', $url);
         $response = $this->getClient()->send($request, $this->getBaseRequestOptions());
-
-        if ($response->getStatusCode() !== 200) {
-            // @TODO: spracovanie chýb
-            return null;
-        }
-
-        $data = json_decode($response->getBody(), true);
-        return $data;
+        return $this->resultFactory->createResult($this->outputFormat, $response->getStatusCode(), (string) $response->getBody());
     }
 
-
+    /**
+     * Count endpoint
+     * @return Result
+     */
     public function callCount()
     {
         $url = $this->getBaseUrl();
         if ($this->filter) {
             $url .= '/(' . $this->filter . ')';
         }
-        $url .= '/$sum.' . $this->outputFormat;
+        $url .= '/$sum.' . $this->outputFormat . $this->getAppendUrl();
 
         $request = new Request('GET', $url);
         $response = $this->getClient()->send($request, $this->getBaseRequestOptions());
-
-        if ($response->getStatusCode() !== 200) {
-            // @TODO: spracovanie chýb
-            return null;
-        }
-
-        $data = json_decode($response->getBody(), true);
-        return $data;
+        return $this->resultFactory->createResult($this->outputFormat, $response->getStatusCode(), (string) $response->getBody());
     }
 
+    /**
+     * Build base registry url
+     * @return string
+     */
     private function getBaseUrl()
     {
         return $this->host . '/c/' . $this->company . '/' . $this->type;
     }
 
+    /**
+     * Build query string
+     * @return null|string
+     */
     private function getAppendUrl()
     {
         if (!count($this->parameters)) {
@@ -531,17 +538,22 @@ class Registry
         return '?' . http_build_query($this->parameters);
     }
 
+    /**
+     * @return array
+     */
     private function getBaseRequestOptions()
     {
         return [
-            //'http_errors' => false,
             'auth' => [$this->username, $this->password],
             'verify' => false,
             'http_errors' => false
         ];
     }
 
-    public function getClient()
+    /**
+     * @return Client
+     */
+    private function getClient()
     {
         if (!$this->client) {
             $this->client = new Client();
